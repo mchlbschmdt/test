@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from twilio.twiml.messaging_response import MessagingResponse
 import openai
 import os
@@ -10,10 +11,19 @@ load_dotenv()
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # New security key
+API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # Secure API key for adding properties
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# CORS setup to allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Set specific frontend domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # OpenAI API Setup
 openai.api_key = OPENAI_API_KEY
@@ -44,7 +54,7 @@ def get_property_info(phone):
     conn.close()
     return result
 
-# Initialize DB
+# Initialize the database
 init_db()
 
 # Function to process guest queries
@@ -70,6 +80,12 @@ def get_response(user_input, phone):
     )
     return response["choices"][0]["message"]["content"]
 
+# Test endpoint to verify API is live
+@app.get("/")
+def home():
+    return {"message": "FastAPI is live!"}
+
+# SMS handling endpoint (Twilio)
 @app.post("/sms")
 async def sms_reply(request: Request):
     form = await request.form()
@@ -82,7 +98,7 @@ async def sms_reply(request: Request):
     resp.message(response_text)
     return str(resp)
 
-# Secure API endpoint for adding properties
+# Secure API endpoint for adding property details
 @app.post("/add_property")
 async def add_property(
     phone: str, wifi: str, check_in: str, checkout: str, recommendations: str, 
@@ -104,3 +120,9 @@ async def add_property(
         return {"message": "Property added successfully!"}
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="Property with this phone number already exists.")
+
+# Chatbot endpoint for frontend
+@app.get("/chatbot")
+def chatbot_response(query: str, phone: str = ""):
+    response_text = get_response(query, phone)
+    return {"response": response_text}
