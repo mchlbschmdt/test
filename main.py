@@ -6,10 +6,6 @@ import sqlite3
 from dotenv import load_dotenv
 import uvicorn
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))  # Default to 8000 if PORT is not set
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
 # Load environment variables
 load_dotenv()
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
