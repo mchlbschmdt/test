@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from twilio.twiml.messaging_response import MessagingResponse
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 import openai
 import os
 import sqlite3
@@ -9,6 +11,15 @@ import uvicorn
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Assuming you have a Base class where your models are defined
+from models import Base
+Base.metadata.create_all(bind=engine)
 
 # Load environment variables
 load_dotenv()
