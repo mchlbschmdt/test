@@ -2,4 +2,5 @@ fastapi
 uvicorn
 twilio
 openai
-python-dotenv
+pydantic
+python-dotenv  # Optional if you're using a .env file
