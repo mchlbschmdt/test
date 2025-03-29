@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from twilio.twiml.messaging_response import MessagingResponse
 import openai
 import os
