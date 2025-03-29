@@ -112,7 +112,7 @@ except Exception as e:
     print(f"Error: {e}")
 raise HTTPException(status_code=500, detail="Internal Server Error")
 
-# Secure API endpoint for adding property details
+# Function to add property data to the database
 @app.post("/add_property")
 async def add_property(
     phone: str, wifi: str, check_in: str, checkout: str, recommendations: str, 
@@ -123,17 +123,30 @@ async def add_property(
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
+        # Connect to SQLite database
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+
+        # Insert the new property data
         cursor.execute("""
             INSERT INTO property_info (phone, wifi, check_in, checkout, recommendations) 
             VALUES (?, ?, ?, ?, ?)
         """, (phone, wifi, check_in, checkout, recommendations))
+
+        # Commit the changes and close the connection
         conn.commit()
         conn.close()
+
+        # Return success message
         return {"message": "Property added successfully!"}
+
     except sqlite3.IntegrityError:
+        # Handle error if the property with the same phone number exists
         raise HTTPException(status_code=400, detail="Property with this phone number already exists.")
+    
+    except Exception as e:
+        # Catch any other exceptions and raise a server error
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 # Chatbot endpoint for frontend
 @app.get("/chatbot")
