@@ -95,12 +95,21 @@ async def sms_reply(request: Request):
     form = await request.form()
     user_message = form.get("Body", "").strip()
     user_phone = form.get("From", "").strip()
+
+    print(f"User Message: {user_message}")
+    print(f"User Phone: {user_phone}")
     
     response_text = get_response(user_message, user_phone)
+
+    print(f"Response Text: {response_text}")
     
     resp = MessagingResponse()
     resp.message(response_text)
     return str(resp)
+
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 # Secure API endpoint for adding property details
 @app.post("/add_property")
