@@ -106,7 +106,6 @@ async def sms_reply(request: Request):
     
     resp = MessagingResponse()
     resp.message(response_text)
-return str(resp)
 
 
 # Function to add property data to the database
