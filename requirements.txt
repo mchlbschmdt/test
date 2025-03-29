@@ -3,4 +3,3 @@ uvicorn
 twilio
 openai
 python-dotenv
-sqlite3
