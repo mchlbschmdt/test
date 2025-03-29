@@ -108,9 +108,6 @@ async def sms_reply(request: Request):
     resp.message(response_text)
 return str(resp)
 
-except Exception as e:
-    print(f"Error: {e}")
-raise HTTPException(status_code=500, detail="Internal Server Error")
 
 # Function to add property data to the database
 @app.post("/add_property")
@@ -146,6 +143,7 @@ async def add_property(
     
     except Exception as e:
         # Catch any other exceptions and raise a server error
+        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 # Chatbot endpoint for frontend
