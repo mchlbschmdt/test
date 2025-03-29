@@ -5,7 +5,6 @@ import openai
 import os
 import sqlite3
 from dotenv import load_dotenv
-import uvicorn
 
 if __name__ == "__main__":
     import uvicorn
