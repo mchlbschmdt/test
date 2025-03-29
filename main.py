@@ -14,8 +14,8 @@ if __name__ == "__main__":
 load_dotenv()
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # Secure API key for adding properties
 
 # Initialize FastAPI app
 app = FastAPI()
