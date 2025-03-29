@@ -29,6 +29,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from twilio.rest import Client
+
+def send_sms(to, message):
+    try:
+        # Your Twilio credentials
+        twilio_account_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        twilio_auth_token = os.getenv('TWILIO_AUTH_TOKEN')
+        twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
+
+        # Create a Twilio client
+        client = Client(twilio_account_sid, twilio_auth_token)
+
+        # Send the SMS
+        message = client.messages.create(
+            body=message,
+            from_=twilio_phone_number,
+            to=to
+        )
+        return {"status": "success", "message": message.sid}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
 # OpenAI API Setup
 openai.api_key = OPENAI_API_KEY
 
