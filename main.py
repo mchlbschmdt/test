@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from twilio.twiml.messaging_response import MessagingResponse
 import openai
 import os
@@ -16,25 +15,17 @@ load_dotenv()
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # Secure API key for adding properties
+API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # New security key
 
 # Initialize FastAPI app
 app = FastAPI()
-
-# CORS setup to allow frontend access
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Set specific frontend domain in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # OpenAI API Setup
 openai.api_key = OPENAI_API_KEY
 
 # Database setup
 DB_PATH = "properties.db"
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -59,7 +50,7 @@ def get_property_info(phone):
     conn.close()
     return result
 
-# Initialize the database
+# Initialize DB
 init_db()
 
 # Function to process guest queries
@@ -85,30 +76,19 @@ def get_response(user_input, phone):
     )
     return response["choices"][0]["message"]["content"]
 
-# Test endpoint to verify API is live
-@app.get("/")
-def home():
-    return {"message": "FastAPI is live!"}
-
-# SMS handling endpoint (Twilio)
 @app.post("/sms")
 async def sms_reply(request: Request):
     form = await request.form()
     user_message = form.get("Body", "").strip()
     user_phone = form.get("From", "").strip()
-
-    print(f"User Message: {user_message}")
-    print(f"User Phone: {user_phone}")
     
     response_text = get_response(user_message, user_phone)
-
-    print(f"Response Text: {response_text}")
     
     resp = MessagingResponse()
     resp.message(response_text)
+    return str(resp)
 
-
-# Function to add property data to the database
+# Secure API endpoint for adding properties
 @app.post("/add_property")
 async def add_property(
     phone: str, wifi: str, check_in: str, checkout: str, recommendations: str, 
@@ -119,34 +99,16 @@ async def add_property(
         raise HTTPException(status_code=403, detail="Unauthorized")
     
     try:
-        # Connect to SQLite database
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-
-        # Insert the new property data
         cursor.execute("""
             INSERT INTO property_info (phone, wifi, check_in, checkout, recommendations) 
             VALUES (?, ?, ?, ?, ?)
         """, (phone, wifi, check_in, checkout, recommendations))
-
-        # Commit the changes and close the connection
         conn.commit()
         conn.close()
-
-        # Return success message
         return {"message": "Property added successfully!"}
-
     except sqlite3.IntegrityError:
-        # Handle error if the property with the same phone number exists
         raise HTTPException(status_code=400, detail="Property with this phone number already exists.")
-    
     except Exception as e:
-        # Catch any other exceptions and raise a server error
-        print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-# Chatbot endpoint for frontend
-@app.get("/chatbot")
-def chatbot_response(query: str, phone: str = ""):
-    response_text = get_response(query, phone)
-    return {"response": response_text}
