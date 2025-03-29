@@ -1,114 +1,102 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from twilio.twiml.messaging_response import MessagingResponse
+from twilio.rest import Client
 import openai
 import os
-import sqlite3
-from dotenv import load_dotenv
-import uvicorn
+import logging
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, timeout_keep_alive=60)
-
-# Load environment variables
-load_dotenv()
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")  # New security key
+# Set up logging for better error tracking
+logging.basicConfig(level=logging.INFO)
 
 # Initialize FastAPI app
 app = FastAPI()
 
-# OpenAI API Setup
-openai.api_key = OPENAI_API_KEY
+# Models for Property and SMS requests
+class Property(BaseModel):
+    name: str
+    location: str
+    description: str
+    price_per_night: float
+    available: bool
 
-# Database setup
-DB_PATH = "properties.db"
+class SMSRequest(BaseModel):
+    to: str
+    message: str
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS property_info (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone TEXT UNIQUE,
-            wifi TEXT,
-            check_in TEXT,
-            checkout TEXT,
-            recommendations TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# In-memory storage for properties (you could replace this with a database like SQLite or MongoDB later)
+properties_db = []
 
-def get_property_info(phone):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT wifi, check_in, checkout, recommendations FROM property_info WHERE phone = ?", (phone,))
-    result = cursor.fetchone()
-    conn.close()
-    return result
+# Root endpoint for health check or general information
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the AI Concierge API!"}
 
-# Initialize DB
-init_db()
+# POST endpoint to create a property
+@app.post("/property")
+async def create_property(property: Property):
+    properties_db.append(property)
+    logging.info(f"Created new property: {property.name}")
+    return {"status": "success", "property": property}
 
-# Function to process guest queries
-def get_response(user_input, phone):
-    property_data = get_property_info(phone)
-    if property_data:
-        wifi, check_in, checkout, recommendations = property_data
-        PROPERTY_INFO = {
-            "wifi": wifi,
-            "check-in": check_in,
-            "checkout": checkout,
-            "recommendations": recommendations
-        }
-        for key in PROPERTY_INFO:
-            if key in user_input.lower():
-                return PROPERTY_INFO[key]
-    
-    # If no predefined answer, use AI
-    response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",
-        messages=[{"role": "system", "content": "You are a helpful concierge for an Airbnb rental."},
-                  {"role": "user", "content": user_input}]
-    )
-    return response["choices"][0]["message"]["content"]
+# GET endpoint to list all properties
+@app.get("/properties")
+async def list_properties():
+    if not properties_db:
+        raise HTTPException(status_code=404, detail="No properties found.")
+    return properties_db
 
+# POST endpoint to send SMS via Twilio
 @app.post("/sms")
-async def sms_reply(request: Request):
-    form = await request.form()
-    user_message = form.get("Body", "").strip()
-    user_phone = form.get("From", "").strip()
-    
-    response_text = get_response(user_message, user_phone)
-    
-    resp = MessagingResponse()
-    resp.message(response_text)
-    return str(resp)
+async def send_sms(request: SMSRequest):
+    # Fetch Twilio credentials from environment variables
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID")
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+    from_number = os.getenv("TWILIO_PHONE_NUMBER")
 
-# Secure API endpoint for adding properties
-@app.post("/add_property")
-async def add_property(
-    phone: str, wifi: str, check_in: str, checkout: str, recommendations: str, 
-    request: Request
-):
-    api_key = request.headers.get("X-API-KEY")
-    if api_key != API_SECRET_KEY:
-        raise HTTPException(status_code=403, detail="Unauthorized")
+    # Check if Twilio credentials are missing
+    if not account_sid or not auth_token or not from_number:
+        raise HTTPException(status_code=400, detail="Twilio credentials are not set properly.")
+    
+    # Initialize Twilio client
+    client = Client(account_sid, auth_token)
+
+    try:
+        # Send the SMS
+        message = client.messages.create(
+            body=request.message,
+            from_=from_number,
+            to=request.to
+        )
+        # Return response with the SID of the sent message
+        return {"status": "Message sent", "message_sid": message.sid}
+    except Exception as e:
+        # Catch and return any exceptions that occur during the SMS send process
+        logging.error(f"Error sending SMS: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# POST endpoint to integrate OpenAI for AI-generated responses (for instance, assistant)
+@app.post("/ask_ai")
+async def ask_ai(question: str):
+    # Fetch OpenAI API key from environment variable
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    # Check if OpenAI API key is missing
+    if not openai.api_key:
+        raise HTTPException(status_code=400, detail="OpenAI API key is not set properly.")
     
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO property_info (phone, wifi, check_in, checkout, recommendations) 
-            VALUES (?, ?, ?, ?, ?)
-        """, (phone, wifi, check_in, checkout, recommendations))
-        conn.commit()
-        conn.close()
-        return {"message": "Property added successfully!"}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Property with this phone number already exists.")
+        # Request OpenAI for completion (you can customize the model as needed)
+        response = openai.Completion.create(
+            model="text-davinci-003",  # You can use other models such as GPT-4
+            prompt=question,
+            max_tokens=150
+        )
+        return {"response": response.choices[0].text.strip()}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        logging.error(f"Error with OpenAI: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error while interacting with OpenAI.")
+
+# Optional additional endpoint for testing Twilio setup (you could add more routes here as needed)
+@app.get("/test")
+def test():
+    return {"status": "Test endpoint working"}
