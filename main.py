@@ -6,7 +6,7 @@ import os
 import logging
 
 # Set up logging for better error tracking
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -28,19 +28,21 @@ properties_db = []
 
 # Root endpoint for health check or general information
 @app.get("/")
-def read_root():
+async def read_root():
+    logging.debug("Root endpoint hit.")
     return {"message": "Welcome to the AI Concierge API!"}
 
 # POST endpoint to create a property
 @app.post("/property")
 async def create_property(property: Property):
+    logging.debug(f"Creating new property: {property.name}")
     properties_db.append(property)
-    logging.info(f"Created new property: {property.name}")
     return {"status": "success", "property": property}
 
 # GET endpoint to list all properties
 @app.get("/properties")
 async def list_properties():
+    logging.debug("Fetching all properties.")
     if not properties_db:
         raise HTTPException(status_code=404, detail="No properties found.")
     return properties_db
@@ -53,8 +55,9 @@ async def send_sms(request: SMSRequest):
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
     from_number = os.getenv("TWILIO_PHONE_NUMBER")
 
-    # Check if Twilio credentials are missing
+    # Log missing credentials error
     if not account_sid or not auth_token or not from_number:
+        logging.error("Twilio credentials are missing!")
         raise HTTPException(status_code=400, detail="Twilio credentials are not set properly.")
     
     # Initialize Twilio client
@@ -68,6 +71,7 @@ async def send_sms(request: SMSRequest):
             to=request.to
         )
         # Return response with the SID of the sent message
+        logging.info(f"SMS sent to {request.to} with SID: {message.sid}")
         return {"status": "Message sent", "message_sid": message.sid}
     except Exception as e:
         # Catch and return any exceptions that occur during the SMS send process
@@ -80,8 +84,9 @@ async def ask_ai(question: str):
     # Fetch OpenAI API key from environment variable
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
-    # Check if OpenAI API key is missing
+    # Log missing API key error
     if not openai.api_key:
+        logging.error("OpenAI API key is missing!")
         raise HTTPException(status_code=400, detail="OpenAI API key is not set properly.")
     
     try:
@@ -91,6 +96,7 @@ async def ask_ai(question: str):
             prompt=question,
             max_tokens=150
         )
+        logging.info(f"OpenAI response: {response.choices[0].text.strip()}")
         return {"response": response.choices[0].text.strip()}
     except Exception as e:
         logging.error(f"Error with OpenAI: {str(e)}")
@@ -98,5 +104,6 @@ async def ask_ai(question: str):
 
 # Optional additional endpoint for testing Twilio setup (you could add more routes here as needed)
 @app.get("/test")
-def test():
+async def test():
+    logging.debug("Test endpoint hit.")
     return {"status": "Test endpoint working"}
