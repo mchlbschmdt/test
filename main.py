@@ -12,7 +12,7 @@ import uvicorn
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("mysql://root:ZgLszGvzUZiysclJEiyfSyXEruAOxGYP@turntable.proxy.rlwy.net:53890/railway")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
