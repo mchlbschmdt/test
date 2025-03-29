@@ -87,7 +87,7 @@ def get_response(user_input, phone):
 # Test endpoint to verify API is live
 @app.get("/")
 def home():
-    return {"message": "FastAPI is live!"}
+    return {"message": "Ai Concierge is live!"}
 
 # SMS handling endpoint (Twilio)
 @app.post("/sms")
