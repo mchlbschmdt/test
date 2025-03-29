@@ -106,11 +106,11 @@ async def sms_reply(request: Request):
     
     resp = MessagingResponse()
     resp.message(response_text)
-    return str(resp)
+return str(resp)
 
-    except Exception as e:
-        print(f"Error: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+except Exception as e:
+    print(f"Error: {e}")
+raise HTTPException(status_code=500, detail="Internal Server Error")
 
 # Secure API endpoint for adding property details
 @app.post("/add_property")
